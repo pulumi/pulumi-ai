@@ -1,4 +1,4 @@
-import { LocalWorkspace, Stack, EngineEvent, OutputMap } from "@pulumi/pulumi/automation";
+import { LocalWorkspace, Stack, EngineEvent, OutputMap, DiagnosticEvent } from "@pulumi/pulumi/automation";
 import * as readline from "readline";
 import * as process from "process";
 import * as openai from "openai";
@@ -23,6 +23,10 @@ You should not start from scratch unless asked.
 You are creating infrastructure in the ${args.cloud} \`${args.region}}\` region. 
 Always include stack exports in the program. 
 Do not use the local filesystem.  Do not use Pulumi config.
+If you can:
+* Use "@pulumi/awsx" for VPCs, ECS, and Fargate and API Gateway
+* Use "@pulumi/eks" for EKS. 
+* Use aws.lambda.CallbackFunction for lambdas and serverless functions.
 
 Current Program:
 \`\`\`${args.langcode}
@@ -64,7 +68,7 @@ function log(msg: string) {
     }
 }
 
-async function getProgramFor(lastProgram: string, request: string): Promise<string> {
+async function getProgramFor(lastProgram: string, request: string, errors: DiagnosticEvent[]): Promise<string> {
     const configuration = new openai.Configuration({
         apiKey: process.env.OPENAI_API_KEY,
     });
@@ -75,8 +79,8 @@ async function getProgramFor(lastProgram: string, request: string): Promise<stri
         cloud: "AWS",
         region: "us-west-2",
         program: lastProgram,
-        // TODO: Pass errors and outputs from previous deployment
-        errors: [],
+        errors: errors.map(e => JSON.stringify(e)),
+        // TODO: Pass outputs from previous deployment
         outputs: {},
         instructions: request,
     })
@@ -84,6 +88,7 @@ async function getProgramFor(lastProgram: string, request: string): Promise<stri
     const resp = await api.createChatCompletion({
         model: process.env.OPENAI_MODEL ?? "gpt-4",
         messages: [{ role: "user", content },],
+        temperature: +process.env.OPENAI_TEMPERATURE ?? 0,
     });
     const message = resp.data.choices[0].message;
     log("response: " + message.content);
@@ -99,40 +104,42 @@ async function getProgramFor(lastProgram: string, request: string): Promise<stri
     return code;
 }
 
-function onEvent(event: EngineEvent) {
-    try {
-        // TODO: Capture errors and pass back in clean form to user
-        if (event.diagnosticEvent && (event.diagnosticEvent.severity == "error" || event.diagnosticEvent.severity == "info#err")) {
-            console.error(event.diagnosticEvent);
-            return;
-        }
-        if (event.diagnosticEvent || event.preludeEvent || event.summaryEvent || event.cancelEvent) {
-            return;
-        }
-        if (event.resourcePreEvent) {
-            if (event.resourcePreEvent.metadata.op != "same") {
-                const name = event.resourcePreEvent.metadata.urn.split("::")[3];
-                console.log(`${event.resourcePreEvent.metadata.op} ${event.resourcePreEvent.metadata.type} ${name} ...`);
-            }
-            return;
-        }
-        if (event.resOutputsEvent) {
-            if (event.resOutputsEvent.metadata.op != "same") {
-                const name = event.resOutputsEvent.metadata.urn.split("::")[3];
-                console.log(`${event.resOutputsEvent.metadata.op}d ${name}`);
-            }
-            return;
-        }
-        console.log(JSON.stringify(event));
-    } catch (err) {
-        console.warn(err);
-    }
-}
-
 async function deploy(stack: Stack, program: string): Promise<OutputMap> {
     stack.workspace.program = async () => requireFromString(program);
-    const res = await stack.up({ onEvent });
-    return res.outputs
+
+    const errors: DiagnosticEvent[] = [];
+    const onEvent = (event: EngineEvent) => {
+        try {
+            if (event.diagnosticEvent && (event.diagnosticEvent.severity == "error" || event.diagnosticEvent.severity == "info#err")) {
+                errors.push(event.diagnosticEvent);
+            } else if (event.resourcePreEvent) {
+                if (event.resourcePreEvent.metadata.op != "same") {
+                    const name = event.resourcePreEvent.metadata.urn.split("::")[3];
+                    console.log(`${event.resourcePreEvent.metadata.op} ${event.resourcePreEvent.metadata.type} ${name} ...`);
+                }
+            } else if (event.resOutputsEvent) {
+                if (event.resOutputsEvent.metadata.op != "same") {
+                    const name = event.resOutputsEvent.metadata.urn.split("::")[3];
+                    console.log(`${event.resOutputsEvent.metadata.op}d ${name}`);
+                }
+            } else if (event.diagnosticEvent || event.preludeEvent || event.summaryEvent || event.cancelEvent) {
+                // Ignore thse events
+            } else {
+                console.warn("unhandled event: " + JSON.stringify(event, null, 4));
+            }
+        } catch (err) {
+            console.warn(err);
+        }
+    }
+
+    try {
+        const res = await stack.up({ onEvent });
+        return res.outputs
+    } catch (err) {
+        // Add the errors and rethrow
+        err.errors = errors;
+        throw err;
+    }
 }
 
 async function handleCommand(request: string, program: string, stack: Stack) {
@@ -187,6 +194,7 @@ async function run() {
     console.log();
     console.log("What cloud infrastructure do you want to build today?")
     let program = "const pulumi = require('@pulumi/pulumi');"
+    let errors: DiagnosticEvent[] = [];
     while (true) {
         const request = await new Promise<string>(resolve => {
             rl.question("\n> ", resolve);
@@ -195,14 +203,16 @@ async function run() {
             await handleCommand(request, program, stack);
             continue;
         }
-        program = await getProgramFor(program, request);
+        program = await getProgramFor(program, request, errors);
         try {
             const outputs = await deploy(stack, program);
             for (const [k, v] of Object.entries(outputs)) {
                 console.log(`${k}: ${v.value}`)
             }
+            errors = [];
         } catch (err) {
-            console.log(err.stdout ?? err);
+            errors = err.errors;
+            errors.forEach(e => console.warn(e));
         }
     }
 }

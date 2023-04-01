@@ -6,7 +6,10 @@
   "author": "EvanBoyle",
   "license": "MIT",
   "dependencies": {
-    "@pulumi/aws": "^4.0.0",
+    "@pulumi/aws": "^4.38.1",
+    "@pulumi/aws-apigateway": "^1.0.1",
+    "@pulumi/awsx": "^0.32.0",
+    "@pulumi/eks": "^1.0.1",
     "@pulumi/pulumi": "^3.0.0",
     "@types/node": "^14.11.7",
     "open": "^8.4.2",
