@@ -1,8 +1,6 @@
 import { LocalWorkspace, Stack, EngineEvent, OutputMap, DiagnosticEvent } from "@pulumi/pulumi/automation";
-import * as readline from "readline";
 import * as process from "process";
 import * as openai from "openai";
-import * as open from "open";
 
 interface PromptArgs {
     lang: string;
@@ -49,61 +47,6 @@ function requireFromString(src: string): Record<string, any> {
     return exports;
 }
 
-async function initializeStack(): Promise<Stack> {
-    const stack = await LocalWorkspace.createOrSelectStack({
-        stackName: "dev",
-        projectName: "inlineNode",
-        program: async () => requireFromString(""),
-    });
-    await stack.workspace.installPlugin("aws", "v4.0.0");
-    await stack.setConfig("aws:region", { value: "us-west-2" });
-    const res = await stack.up();
-    return stack;
-}
-
-let verbose = false;
-function log(msg: string) {
-    if (verbose) {
-        console.error(msg);
-    }
-}
-
-async function getProgramFor(lastProgram: string, request: string, errors: DiagnosticEvent[]): Promise<string> {
-    const configuration = new openai.Configuration({
-        apiKey: process.env.OPENAI_API_KEY,
-    });
-    const api = new openai.OpenAIApi(configuration);
-    const content = prompt({
-        lang: "JavaScript",
-        langcode: "javascript",
-        cloud: "AWS",
-        region: "us-west-2",
-        program: lastProgram,
-        errors: errors.map(e => JSON.stringify(e)),
-        // TODO: Pass outputs from previous deployment
-        outputs: {},
-        instructions: request,
-    })
-    log("prompt: " + content);
-    const resp = await api.createChatCompletion({
-        model: process.env.OPENAI_MODEL ?? "gpt-4",
-        messages: [{ role: "user", content },],
-        temperature: +process.env.OPENAI_TEMPERATURE ?? 0,
-    });
-    const message = resp.data.choices[0].message;
-    log("response: " + message.content);
-
-    const codestart = message.content.indexOf("```");
-    log(codestart.toString());
-    if (codestart == -1) {
-        return "";
-    }
-    const start = message.content.indexOf("\n", codestart) + 1;
-    const end = message.content.indexOf("```", start);
-    const code = message.content.substring(start, end);
-    return code;
-}
-
 async function deploy(stack: Stack, program: string): Promise<OutputMap> {
     stack.workspace.program = async () => requireFromString(program);
 
@@ -142,77 +85,113 @@ async function deploy(stack: Stack, program: string): Promise<OutputMap> {
     }
 }
 
-async function handleCommand(request: string, program: string, stack: Stack) {
-    const parts = request.split(" ");
-    switch (parts[0]) {
-        case "!quit":
-            process.exit(0);
-        case "!program":
-            console.log(program);
-            break;
-        case "!stack":
-            const s = await stack.exportStack();
-            console.log(s.deployment.resources);
-            break;
-        case "!verbose":
-            if (parts[1] == "off") {
-                verbose = false;
-                console.warn("Verbose mode off.")
-            } else {
-                verbose = true;
-                console.warn("Verbose mode on.")
-            }
-            break;
-        case "!open":
-            if (parts.length <= 1) {
-                console.warn("Usage: !open <output>")
-                break;
-            }
-            let url: string;
-            if (parts[1].startsWith("http")) {
-                url = parts[1];
-            } else {
-                const outputs = await stack.outputs();
-                url = outputs[parts[1]].value;
-            }
-            await open(url);
-            break;
-        default:
-            console.log("Unknown command: " + request);
-            break;
-    }
+
+export interface Options {
+    /**
+     * The OpenAI API key to use.
+     */
+    openaiApiKey: string;
+    /**
+     * The OpenAI model to use. Defaults to "gpt-4".
+     */
+    openaiModel?: string;
+    /**
+     * The OpenAI temperature to use. Defaults to 0.
+     */
+    openaiTemperature?: number;
+    /**
+     * Whether to automatically deploy the stack. Defaults to true.
+     */
+    autoDeploy?: boolean;
 }
 
-export async function run() {
-    const stack = await initializeStack();
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
 
-    console.log("Welcome to Pulumi GPT.");
-    console.log();
-    const summary = await stack.workspace.stack();
-    console.log(`Your stack: ${summary.url}/resources`);
-    console.log();
-    console.log("What cloud infrastructure do you want to build today?")
-    let program = "const pulumi = require('@pulumi/pulumi');"
-    let errors: DiagnosticEvent[] = [];
-    while (true) {
-        const request = await new Promise<string>(resolve => {
-            rl.question("\n> ", resolve);
+export class PulumiGPT {
+    public program: string;
+    public errors: DiagnosticEvent[];
+    public stack: Promise<Stack>;
+    public verbose: boolean;
+
+    private openaiApi: openai.OpenAIApi;
+
+    constructor(options: Options) {
+        const configuration = new openai.Configuration({
+            apiKey: options.openaiApiKey,
         });
-        if (request.length > 0 && request[0] == "!") {
-            await handleCommand(request, program, stack);
-            continue;
-        }
-        program = await getProgramFor(program, request, errors);
+        this.openaiApi = new openai.OpenAIApi(configuration);
+        this.program = "const pulumi = require('@pulumi/pulumi');"
+        this.errors = [];
+        this.stack = this.initializeStack();
+        this.verbose = false;
+    }
+
+    public async interact(input: string): Promise<void> {
+        const stack = await this.stack;
+        this.program = await this.getProgramFor(input);
         try {
-            const outputs = await deploy(stack, program);
+            const outputs = await deploy(stack, this.program);
             for (const [k, v] of Object.entries(outputs)) {
                 console.log(`${k}: ${v.value}`)
             }
-            errors = [];
+            this.errors = [];
         } catch (err) {
-            errors = err.errors;
-            errors.forEach(e => console.warn(e));
+            this.errors = err.errors;
+            this.errors.forEach(e => console.warn(e));
         }
     }
+
+    private async initializeStack(): Promise<Stack> {
+        const stack = await LocalWorkspace.createOrSelectStack({
+            stackName: "dev",
+            projectName: "inlineNode",
+            program: async () => requireFromString(""),
+        });
+        await stack.workspace.installPlugin("aws", "v4.0.0");
+        await stack.setConfig("aws:region", { value: "us-west-2" });
+        const res = await stack.up();
+        return stack;
+    }
+
+    private async getProgramFor(request: string): Promise<string> {
+        const configuration = new openai.Configuration({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+        const api = new openai.OpenAIApi(configuration);
+        const content = prompt({
+            lang: "JavaScript",
+            langcode: "javascript",
+            cloud: "AWS",
+            region: "us-west-2",
+            program: this.program,
+            errors: this.errors.map(e => JSON.stringify(e)),
+            // TODO: Pass outputs from previous deployment
+            outputs: {},
+            instructions: request,
+        })
+        this.log("prompt: " + content);
+        const resp = await api.createChatCompletion({
+            model: process.env.OPENAI_MODEL ?? "gpt-4",
+            messages: [{ role: "user", content },],
+            temperature: +process.env.OPENAI_TEMPERATURE ?? 0,
+        });
+        const message = resp.data.choices[0].message;
+        this.log("response: " + message.content);
+
+        const codestart = message.content.indexOf("```");
+        this.log(codestart.toString());
+        if (codestart == -1) {
+            return "";
+        }
+        const start = message.content.indexOf("\n", codestart) + 1;
+        const end = message.content.indexOf("```", start);
+        const code = message.content.substring(start, end);
+        return code;
+    }
+
+    private log(msg: string) {
+        if (this.verbose) {
+            console.error(msg);
+        }
+    }
+
 }
