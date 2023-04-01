@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "outDir": "bin",
+        "outDir": "./lib",
         "target": "es2016",
         "module": "commonjs",
         "moduleResolution": "node",

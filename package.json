@@ -1,22 +1,28 @@
 {
-  "name": "inline_program",
-  "version": "1.0.0",
-  "main": "./bin/index.js",
-  "repository": "github.com/pulumi/automation-api-examples",
-  "author": "EvanBoyle",
-  "license": "MIT",
+  "name": "pulumigpt",
+  "version": "0.0.1",
+  "main": "./lib/index.js",
+  "repository": "https://github.com/pulumi/pulumigpt",
+  "author": "Luke Hoban",
+  "license": "Apache-2.0",
   "dependencies": {
     "@pulumi/aws": "^4.38.1",
     "@pulumi/aws-apigateway": "^1.0.1",
     "@pulumi/awsx": "^0.32.0",
     "@pulumi/eks": "^1.0.1",
     "@pulumi/pulumi": "^3.0.0",
-    "@types/node": "^14.11.7",
     "open": "^8.4.2",
     "openai": "^3.2.1"
   },
+  "devDependencies": {
+    "@types/node": "^14.11.7",
+    "typescript": "^4.3.5"
+  },
   "scripts": {
+    "prepublish": "tsc",
     "build": "tsc",
-    "start": "tsc && node ./bin/index.js"
-  }
+    "start": "tsc && node ./lib/index.js"
+  },
+  "files": ["lib/**/*"],
+  "types": "lib/index.d.ts"
 }
