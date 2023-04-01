@@ -71,7 +71,7 @@ async function run() {
             continue;
         }
         await pulumigpt.interact(request);
-        pulumigpt.errors.forEach(e => console.warn(`error: ${e}`));
+        pulumigpt.errors.forEach(e => console.warn(`error: ${JSON.stringify(e)}`));
     }
 }
 

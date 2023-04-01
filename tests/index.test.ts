@@ -13,6 +13,28 @@ describe("pulumigpt", (): void => {
         expect(summary!.name).to.equal("dev");
     }).timeout(100000);
 
+    it("builds a simple vpc", async () => {
+        const commands = [
+            `An AWS VPC`,
+            `add three private subnets`,
+            `remove one of the subnets`,
+        ];
+        await runTest(commands, {}, async (p, outputs) => {
+            let subnets = 0;
+            let vpcs = 0;
+            for (const [k, v] of Object.entries(outputs)) {
+                if (typeof v.value == "string" && v.value.startsWith("subnet-")) {
+                    subnets++;
+                } else if (typeof v.value == "string" && v.value.startsWith("vpc-")) {
+                    vpcs++;
+                }
+            }
+            expect(subnets).to.be.equal(2);
+            expect(vpcs).to.be.equal(1);
+        });
+    }).timeout(1000000);
+
+
     it("builds a static website deploy", async () => {
         const commands = [
             `give me an s3 bucket`,

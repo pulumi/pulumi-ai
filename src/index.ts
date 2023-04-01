@@ -21,7 +21,7 @@ You are creating infrastructure in the ${args.cloud} \`${args.region}}\` region.
 Always include stack exports in the program. 
 Do not use the local filesystem.  Do not use Pulumi config.
 If you can:
-* Use "@pulumi/awsx" for VPCs, ECS, and Fargate and API Gateway
+* Use "@pulumi/awsx" for ECS, and Fargate and API Gateway
 * Use "@pulumi/eks" for EKS. 
 * Use aws.lambda.CallbackFunction for lambdas and serverless functions.
 
@@ -75,7 +75,7 @@ export class PulumiGPT {
     public stack: Promise<Stack>;
     public verbose: boolean;
     public autoDeploy: boolean;
-    
+
     private openaiApi: openai.OpenAIApi;
     private model: string;
     private temperature: number;
