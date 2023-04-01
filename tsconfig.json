@@ -7,4 +7,9 @@
         "declaration": true,
         "sourceMap": true,
     },
+    "exclude": [
+        "tests",
+        "lib",
+        "node_modules"
+    ]
 }

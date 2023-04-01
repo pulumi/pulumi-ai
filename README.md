@@ -5,6 +5,8 @@ Create cloud infrastructure with Pulumi Automation API and OpenAI ChatGPT 😊.
 ![Demo of Pulumi GPT](assets/demo.gif)
 
 ```
+> npx pulumigpt
+
 Welcome to Pulumi GPT.
 
 Your stack: https://app.pulumi.com/luke-pulumi-corp/inlineNode/dev/resources

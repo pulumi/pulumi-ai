@@ -183,7 +183,7 @@ async function handleCommand(request: string, program: string, stack: Stack) {
     }
 }
 
-async function run() {
+export async function run() {
     const stack = await initializeStack();
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
 
@@ -216,5 +216,3 @@ async function run() {
         }
     }
 }
-
-run().catch(err => console.log(err));
