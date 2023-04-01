@@ -1,5 +1,4 @@
 import { LocalWorkspace, Stack, EngineEvent, OutputMap, DiagnosticEvent } from "@pulumi/pulumi/automation";
-import * as process from "process";
 import * as openai from "openai";
 
 interface PromptArgs {
@@ -47,43 +46,7 @@ function requireFromString(src: string): Record<string, any> {
     return exports;
 }
 
-async function deploy(stack: Stack, program: string): Promise<OutputMap> {
-    stack.workspace.program = async () => requireFromString(program);
 
-    const errors: DiagnosticEvent[] = [];
-    const onEvent = (event: EngineEvent) => {
-        try {
-            if (event.diagnosticEvent && (event.diagnosticEvent.severity == "error" || event.diagnosticEvent.severity == "info#err")) {
-                errors.push(event.diagnosticEvent);
-            } else if (event.resourcePreEvent) {
-                if (event.resourcePreEvent.metadata.op != "same") {
-                    const name = event.resourcePreEvent.metadata.urn.split("::")[3];
-                    console.log(`${event.resourcePreEvent.metadata.op} ${event.resourcePreEvent.metadata.type} ${name} ...`);
-                }
-            } else if (event.resOutputsEvent) {
-                if (event.resOutputsEvent.metadata.op != "same") {
-                    const name = event.resOutputsEvent.metadata.urn.split("::")[3];
-                    console.log(`${event.resOutputsEvent.metadata.op}d ${name}`);
-                }
-            } else if (event.diagnosticEvent || event.preludeEvent || event.summaryEvent || event.cancelEvent) {
-                // Ignore thse events
-            } else {
-                console.warn("unhandled event: " + JSON.stringify(event, null, 4));
-            }
-        } catch (err) {
-            console.warn(err);
-        }
-    }
-
-    try {
-        const res = await stack.up({ onEvent });
-        return res.outputs
-    } catch (err) {
-        // Add the errors and rethrow
-        err.errors = errors;
-        throw err;
-    }
-}
 
 
 export interface Options {
@@ -111,8 +74,11 @@ export class PulumiGPT {
     public errors: DiagnosticEvent[];
     public stack: Promise<Stack>;
     public verbose: boolean;
-
+    public autoDeploy: boolean;
+    
     private openaiApi: openai.OpenAIApi;
+    private model: string;
+    private temperature: number;
 
     constructor(options: Options) {
         const configuration = new openai.Configuration({
@@ -121,22 +87,30 @@ export class PulumiGPT {
         this.openaiApi = new openai.OpenAIApi(configuration);
         this.program = "const pulumi = require('@pulumi/pulumi');"
         this.errors = [];
-        this.stack = this.initializeStack();
         this.verbose = false;
+        this.autoDeploy = options.autoDeploy ?? true;
+        this.model = options.openaiModel ?? "gpt-4";
+        this.temperature = options.openaiTemperature ?? 0;
+        if (this.autoDeploy) {
+            this.stack = this.initializeStack();
+        }
     }
 
     public async interact(input: string): Promise<void> {
-        const stack = await this.stack;
         this.program = await this.getProgramFor(input);
-        try {
-            const outputs = await deploy(stack, this.program);
-            for (const [k, v] of Object.entries(outputs)) {
-                console.log(`${k}: ${v.value}`)
+        if (this.autoDeploy) {
+            try {
+                const outputs = await this.deploy();
+                if (Object.keys(outputs).length > 0) {
+                    console.log("Stack Outputs:")
+                }
+                for (const [k, v] of Object.entries(outputs)) {
+                    console.log(`  ${k}: ${v.value}`)
+                }
+                this.errors = [];
+            } catch (err) {
+                this.errors = err.errors;
             }
-            this.errors = [];
-        } catch (err) {
-            this.errors = err.errors;
-            this.errors.forEach(e => console.warn(e));
         }
     }
 
@@ -148,15 +122,13 @@ export class PulumiGPT {
         });
         await stack.workspace.installPlugin("aws", "v4.0.0");
         await stack.setConfig("aws:region", { value: "us-west-2" });
+        // Cancel and ignore any errors to ensure we clean up after previous failed deployments
+        try { await stack.cancel(); } catch (err) { }
         const res = await stack.up();
         return stack;
     }
 
     private async getProgramFor(request: string): Promise<string> {
-        const configuration = new openai.Configuration({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-        const api = new openai.OpenAIApi(configuration);
         const content = prompt({
             lang: "JavaScript",
             langcode: "javascript",
@@ -169,10 +141,10 @@ export class PulumiGPT {
             instructions: request,
         })
         this.log("prompt: " + content);
-        const resp = await api.createChatCompletion({
-            model: process.env.OPENAI_MODEL ?? "gpt-4",
-            messages: [{ role: "user", content },],
-            temperature: +process.env.OPENAI_TEMPERATURE ?? 0,
+        const resp = await this.openaiApi.createChatCompletion({
+            model: this.model,
+            messages: [{ role: "user", content }],
+            temperature: this.temperature,
         });
         const message = resp.data.choices[0].message;
         this.log("response: " + message.content);
@@ -191,6 +163,45 @@ export class PulumiGPT {
     private log(msg: string) {
         if (this.verbose) {
             console.error(msg);
+        }
+    }
+
+    private async deploy(): Promise<OutputMap> {
+        const stack = await this.stack;
+        stack.workspace.program = async () => requireFromString(this.program);
+
+        const errors: DiagnosticEvent[] = [];
+        const onEvent = (event: EngineEvent) => {
+            try {
+                if (event.diagnosticEvent && (event.diagnosticEvent.severity == "error" || event.diagnosticEvent.severity == "info#err")) {
+                    errors.push(event.diagnosticEvent);
+                } else if (event.resourcePreEvent) {
+                    if (event.resourcePreEvent.metadata.op != "same") {
+                        const name = event.resourcePreEvent.metadata.urn.split("::")[3];
+                        console.log(`${event.resourcePreEvent.metadata.op} ${event.resourcePreEvent.metadata.type} ${name} ...`);
+                    }
+                } else if (event.resOutputsEvent) {
+                    if (event.resOutputsEvent.metadata.op != "same") {
+                        const name = event.resOutputsEvent.metadata.urn.split("::")[3];
+                        console.log(`${event.resOutputsEvent.metadata.op}d ${name}`);
+                    }
+                } else if (event.diagnosticEvent || event.preludeEvent || event.summaryEvent || event.cancelEvent) {
+                    // Ignore thse events
+                } else {
+                    console.warn("unhandled event: " + JSON.stringify(event, null, 4));
+                }
+            } catch (err) {
+                console.warn(`couldn't handle event ${event}: ${err}`);
+            }
+        }
+
+        try {
+            const res = await stack.up({ onEvent });
+            return res.outputs
+        } catch (err) {
+            // Add the errors and rethrow
+            err.errors = errors;
+            throw err;
         }
     }
 

@@ -70,9 +70,12 @@ async function run() {
             await handleCommand(request, pulumigpt);
             continue;
         }
-        pulumigpt.interact(request);
-        pulumigpt.errors.forEach(e => console.warn(e));
+        await pulumigpt.interact(request);
+        pulumigpt.errors.forEach(e => console.warn(`error: ${e}`));
     }
 }
 
-run().catch(err => console.log(err));
+run().catch(err => {
+    console.error(`unhandled error: ${err}`);
+    process.exit(1);
+});
