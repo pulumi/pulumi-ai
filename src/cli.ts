@@ -3,6 +3,7 @@ import { PulumiGPT } from ".";
 import * as readline from "readline";
 
 async function handleCommand(request: string, pulumigpt: PulumiGPT) {
+    const stack = await pulumigpt.stack;
     const parts = request.split(" ");
     switch (parts[0]) {
         case "!quit":
@@ -11,7 +12,6 @@ async function handleCommand(request: string, pulumigpt: PulumiGPT) {
             console.log(pulumigpt.program);
             break;
         case "!stack":
-            const stack = await pulumigpt.stack;
             const s = await stack.exportStack();
             console.log(s.deployment.resources);
             break;

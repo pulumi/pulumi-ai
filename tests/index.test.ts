@@ -64,7 +64,7 @@ describe("pulumigpt", (): void => {
         ];
         await runTest(commands, { autoDeploy: false }, async (p) => {
             expect(p.program).to.contain("Hello");
-            expect(p.program).to.contain("amazonaws.com");
+            expect(p.program).to.contain("websiteEndpoint");
         },);
     }).timeout(1000000);
 
@@ -84,6 +84,9 @@ async function runTest(commands: string[], opts: Options, validate: (p: PulumiGP
     for (const command of commands) {
         console.log(`step ${++i}/${commands.length}: '${command}'`);
         await p.interact(command);
+        while (p.errors.length != 0) {
+            await p.interact("Fix the errors");
+        }
     }
     console.log(`Program:\n${p.program}`);
     if (p.autoDeploy) {

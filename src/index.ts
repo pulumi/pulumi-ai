@@ -66,6 +66,14 @@ export interface Options {
      * Whether to automatically deploy the stack. Defaults to true.
      */
     autoDeploy?: boolean;
+    /**
+     * The name of the project to create. Defaults to "pulumigpt".
+     */
+    projectName?: string;
+    /**
+     * The name of the stack to create. Defaults to "dev".
+     */
+    stackName?: string;
 }
 
 
@@ -92,7 +100,7 @@ export class PulumiGPT {
         this.model = options.openaiModel ?? "gpt-4";
         this.temperature = options.openaiTemperature ?? 0;
         if (this.autoDeploy) {
-            this.stack = this.initializeStack();
+            this.stack = this.initializeStack(options.stackName ?? "dev", options.projectName ?? "pulumigpt");
         }
     }
 
@@ -114,13 +122,12 @@ export class PulumiGPT {
         }
     }
 
-    private async initializeStack(): Promise<Stack> {
+    private async initializeStack(stackName: string, projectName: string): Promise<Stack> {
         const stack = await LocalWorkspace.createOrSelectStack({
-            stackName: "dev",
-            projectName: "inlineNode",
+            stackName: stackName,
+            projectName: projectName,
             program: async () => requireFromString(""),
         });
-        await stack.workspace.installPlugin("aws", "v4.0.0");
         await stack.setConfig("aws:region", { value: "us-west-2" });
         // Cancel and ignore any errors to ensure we clean up after previous failed deployments
         try { await stack.cancel(); } catch (err) { }
@@ -174,7 +181,9 @@ export class PulumiGPT {
         const onEvent = (event: EngineEvent) => {
             try {
                 if (event.diagnosticEvent && (event.diagnosticEvent.severity == "error" || event.diagnosticEvent.severity == "info#err")) {
-                    errors.push(event.diagnosticEvent);
+                    if (!event.diagnosticEvent.message.startsWith("One or more errors occurred")) {
+                        errors.push(event.diagnosticEvent);
+                    } 
                 } else if (event.resourcePreEvent) {
                     if (event.resourcePreEvent.metadata.op != "same") {
                         const name = event.resourcePreEvent.metadata.urn.split("::")[3];
