@@ -1,4 +1,5 @@
 import { LocalWorkspace, Stack, EngineEvent, OutputMap, DiagnosticEvent } from "@pulumi/pulumi/automation";
+import { IncomingMessage } from "http";
 import * as openai from "openai";
 
 interface PromptArgs {
@@ -76,6 +77,17 @@ export interface Options {
     stackName?: string;
 }
 
+class ProgramResponse {
+    program: string;
+    text: string;
+}
+
+export class InteractResponse {
+    text: string;
+    outputs?: OutputMap;
+    program?: string;
+    failed?: boolean;
+}
 
 export class PulumiGPT {
     public program: string;
@@ -104,22 +116,25 @@ export class PulumiGPT {
         }
     }
 
-    public async interact(input: string): Promise<void> {
-        this.program = await this.getProgramFor(input);
+    public async interact(input: string): Promise<InteractResponse> {
+        const resp = await this.getProgramFor(input);
+        this.program = resp.program;
+        const response = {
+            text: resp.text,
+            program: resp.program,
+            outputs: undefined,
+            failed: undefined,
+        };
         if (this.autoDeploy) {
             try {
-                const outputs = await this.deploy();
-                if (Object.keys(outputs).length > 0) {
-                    console.log("Stack Outputs:")
-                }
-                for (const [k, v] of Object.entries(outputs)) {
-                    console.log(`  ${k}: ${v.value}`)
-                }
+                response.outputs = await this.deploy();
                 this.errors = [];
             } catch (err) {
                 this.errors = err.errors;
+                response.failed = true;
             }
         }
+        return response;
     }
 
     private async initializeStack(stackName: string, projectName: string): Promise<Stack> {
@@ -135,7 +150,7 @@ export class PulumiGPT {
         return stack;
     }
 
-    private async getProgramFor(request: string): Promise<string> {
+    private async getProgramFor(request: string, onEvent?: (chunk: string) => void): Promise<ProgramResponse> {
         const content = prompt({
             lang: "JavaScript",
             langcode: "javascript",
@@ -152,24 +167,63 @@ export class PulumiGPT {
             model: this.model,
             messages: [{ role: "user", content }],
             temperature: this.temperature,
-        });
-        const message = resp.data.choices[0].message;
-        this.log("response: " + message.content);
+            stream: true,
+        }, { responseType: "stream" });
 
-        const codestart = message.content.indexOf("```");
-        this.log(codestart.toString());
+        const stream = resp.data as unknown as IncomingMessage;
+
+        const allData = new Promise<string>((resolve, reject) => {
+            const textParts: string[] = [];
+            stream.on("data", async (chunk: Buffer) => {
+                try {
+                    const payloads = chunk.toString().split("\n\n");
+                    for (const payload of payloads) {
+                        if (payload.includes('[DONE]')) {
+                            resolve(textParts.join(""));
+                        } else if (payload.startsWith("data:")) {
+                            const data = payload.replace(/(\n)?^data:\s*/g, '');
+                            const parsed = JSON.parse(data.trim());
+                            const content = parsed.choices[0].delta.content;
+                            if (content) {
+                                if (onEvent) {
+                                    onEvent(content);
+                                }
+                                textParts.push(content);
+                            }
+                        } else if (payload == "") {
+                            // Ignore empty payloads
+                        } else {
+                            this.log("unknown openai payload: " + payload)
+                        }
+                    }
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        });
+
+        // Wait until we've gotten all the updates from the stream.
+        // This might throw, and if it does, we bubble that up into our caller.
+        const text = await allData;
+        this.log("response: " + text);
+        const response = {
+            text: text,
+            program: "",
+        };
+
+        const codestart = text.indexOf("```");
         if (codestart == -1) {
-            return "";
+            return response;
         }
-        const start = message.content.indexOf("\n", codestart) + 1;
-        const end = message.content.indexOf("```", start);
-        const code = message.content.substring(start, end);
-        return code;
+        const start = text.indexOf("\n", codestart) + 1;
+        const end = text.indexOf("```", start);
+        response.program = text.substring(start, end);
+        return response;
     }
 
     private log(msg: string) {
         if (this.verbose) {
-            console.error(msg);
+            console.warn(msg);
         }
     }
 
@@ -183,24 +237,22 @@ export class PulumiGPT {
                 if (event.diagnosticEvent && (event.diagnosticEvent.severity == "error" || event.diagnosticEvent.severity == "info#err")) {
                     if (!event.diagnosticEvent.message.startsWith("One or more errors occurred")) {
                         errors.push(event.diagnosticEvent);
-                    } 
+                    }
                 } else if (event.resourcePreEvent) {
                     if (event.resourcePreEvent.metadata.op != "same") {
                         const name = event.resourcePreEvent.metadata.urn.split("::")[3];
-                        console.log(`${event.resourcePreEvent.metadata.op} ${event.resourcePreEvent.metadata.type} ${name} ...`);
                     }
                 } else if (event.resOutputsEvent) {
                     if (event.resOutputsEvent.metadata.op != "same") {
                         const name = event.resOutputsEvent.metadata.urn.split("::")[3];
-                        console.log(`${event.resOutputsEvent.metadata.op}d ${name}`);
                     }
                 } else if (event.diagnosticEvent || event.preludeEvent || event.summaryEvent || event.cancelEvent) {
                     // Ignore thse events
                 } else {
-                    console.warn("unhandled event: " + JSON.stringify(event, null, 4));
+                    this.log("unhandled event: " + JSON.stringify(event, null, 4));
                 }
             } catch (err) {
-                console.warn(`couldn't handle event ${event}: ${err}`);
+                this.log(`couldn't handle event ${event}: ${err}`);
             }
         }
 

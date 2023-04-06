@@ -7,6 +7,9 @@ async function handleCommand(request: string, pulumigpt: PulumiGPT) {
     const parts = request.split(" ");
     switch (parts[0]) {
         case "!quit":
+            console.log("destroying stack...");
+            await stack.destroy();
+            console.log("done. Goodbye!");
             process.exit(0);
         case "!program":
             console.log(pulumigpt.program);
@@ -60,7 +63,7 @@ async function run() {
     const summary = await stack.workspace.stack();
     console.log(`Your stack: ${summary.url}/resources`);
     console.log();
-    console.log("What cloud infrastructure do you want to build today?")
+    console.log("What cloud infrastructure do you want to build today?");
 
     while (true) {
         const request = await new Promise<string>(resolve => {
@@ -70,8 +73,21 @@ async function run() {
             await handleCommand(request, pulumigpt);
             continue;
         }
-        await pulumigpt.interact(request);
-        pulumigpt.errors.forEach(e => console.warn(`error: ${JSON.stringify(e)}`));
+        const resp = await pulumigpt.interact(request);
+        if (resp.failed == true) {
+            pulumigpt.errors.forEach(e => console.warn(`error: ${JSON.stringify(e)}`));
+        } else if (resp.program) {
+            const outputs = resp.outputs || {};
+            if (Object.keys(outputs).length > 0) {
+                console.log("Stack Outputs:");
+            }
+            for (const [k, v] of Object.entries(outputs)) {
+                console.log(`  ${k}: ${v.value}`);
+            }
+        } else {
+            // We could find a program.
+            console.warn(`error: ${resp.text}`);
+        }
     }
 }
 
