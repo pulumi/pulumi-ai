@@ -1,0 +1,28 @@
+name: Test Package
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+env:
+  PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN_PRODUCTION }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [19.x]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Setup Pulumi
+        uses: pulumi/actions@v4
+      - name: Install dependencies and build 🔧
+        run: npm ci
+      - name: Test 🧪
+        run: npm test
