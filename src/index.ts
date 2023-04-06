@@ -127,12 +127,6 @@ export class PulumiAI {
     }
 
     public async generateTitleForProgram(program: string): Promise<string> {
-        console.log("generating title", {
-            model: this.model,
-            prompt: titlePrompt(program),
-            temperature: this.temperature,
-        });
-
         const resp = await this.openaiApi.createChatCompletion({
             model: this.model,
             messages: [{role: "user", content: titlePrompt(program)}],
