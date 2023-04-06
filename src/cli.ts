@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { PulumiGPT } from ".";
 import * as readline from "readline";
+import * as chalk from "chalk";
 
 async function handleCommand(request: string, pulumigpt: PulumiGPT) {
     const stack = await pulumigpt.stack;
@@ -73,7 +74,19 @@ async function run() {
             await handleCommand(request, pulumigpt);
             continue;
         }
-        const resp = await pulumigpt.interact(request);
+        
+        let text = "";
+        let i = 0;
+        const resp = await pulumigpt.interact(request, (chunk) => {
+            chunk = chunk.replace(/[\n\t\r]/g, " ");
+            text = (text + chunk).slice(-60);
+            const progress = [".  ", ".. ", "...", "   "][Math.floor((i++)/3) % 4];
+            process.stdout.write(`\rThinking${progress}  ${chalk.dim(text)}`);
+        }, () => {
+            readline.clearLine(process.stdout, -1)
+            process.stdout.write(`\r`);
+        });
+        process.stdout.write("\r");
         if (resp.failed == true) {
             pulumigpt.errors.forEach(e => console.warn(`error: ${JSON.stringify(e)}`));
         } else if (resp.program) {

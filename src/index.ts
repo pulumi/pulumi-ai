@@ -116,8 +116,8 @@ export class PulumiGPT {
         }
     }
 
-    public async interact(input: string): Promise<InteractResponse> {
-        const resp = await this.getProgramFor(input);
+    public async interact(input: string, onEvent?: (chunk: string) => void, predeploy?: (resp: InteractResponse) => void): Promise<InteractResponse> {
+        const resp = await this.getProgramFor(input, onEvent);
         this.program = resp.program;
         const response = {
             text: resp.text,
@@ -126,6 +126,7 @@ export class PulumiGPT {
             failed: undefined,
         };
         if (this.autoDeploy) {
+            if (predeploy) { predeploy(response); }
             try {
                 response.outputs = await this.deploy();
                 this.errors = [];
@@ -241,10 +242,12 @@ export class PulumiGPT {
                 } else if (event.resourcePreEvent) {
                     if (event.resourcePreEvent.metadata.op != "same") {
                         const name = event.resourcePreEvent.metadata.urn.split("::")[3];
+                        console.log(`${event.resourcePreEvent.metadata.op} ${event.resourcePreEvent.metadata.type} ${name} ...`);
                     }
                 } else if (event.resOutputsEvent) {
                     if (event.resOutputsEvent.metadata.op != "same") {
                         const name = event.resOutputsEvent.metadata.urn.split("::")[3];
+                        console.log(`${event.resOutputsEvent.metadata.op}d ${name}`);
                     }
                 } else if (event.diagnosticEvent || event.preludeEvent || event.summaryEvent || event.cancelEvent) {
                     // Ignore thse events

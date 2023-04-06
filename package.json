@@ -11,6 +11,7 @@
     "@pulumi/awsx": "^0.32.0",
     "@pulumi/eks": "^1.0.1",
     "@pulumi/pulumi": "^3.0.0",
+    "chalk": "^4.1.2",
     "open": "^8.4.2",
     "openai": "^3.2.1"
   },
