@@ -1,11 +1,11 @@
-import { PulumiGPT } from "../src/index";
+import { PulumiAI } from "../src/index";
 import { expect } from "chai";
 import axios from "axios";
 import { OutputMap } from "@pulumi/pulumi/automation";
 
-describe("pulumigpt", (): void => {
-    it("construct PulumiGPT stack", async () => {
-        const p = new PulumiGPT({
+describe("pulumiai", (): void => {
+    it("construct PulumiAI stack", async () => {
+        const p = new PulumiAI({
             openaiApiKey: process.env.OPENAI_API_KEY!,
         });
         const stack = await p.stack;
@@ -74,8 +74,8 @@ interface Options {
     autoDeploy?: boolean;
 }
 
-async function runTest(commands: string[], opts: Options, validate: (p: PulumiGPT, outputs: OutputMap) => Promise<void>) {
-    const p = new PulumiGPT({
+async function runTest(commands: string[], opts: Options, validate: (p: PulumiAI, outputs: OutputMap) => Promise<void>) {
+    const p = new PulumiAI({
         openaiApiKey: process.env.OPENAI_API_KEY!,
         openaiTemperature: 0, // For test stability
         ...opts,

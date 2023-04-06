@@ -1,8 +1,8 @@
 {
-  "name": "pulumigpt",
+  "name": "pulumiai",
   "version": "0.0.1",
   "main": "./lib/index.js",
-  "repository": "https://github.com/pulumi/pulumigpt",
+  "repository": "https://github.com/pulumi/pulumiai",
   "author": "Luke Hoban",
   "license": "Apache-2.0",
   "dependencies": {
@@ -31,7 +31,7 @@
     "test": "ts-mocha tests/**/*.test.ts"
   },
   "bin": {
-    "pulumigpt": "./lib/cli.js"
+    "pulumiai": "./lib/cli.js"
   },
   "files": [
     "lib"

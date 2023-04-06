@@ -13,7 +13,7 @@ interface PromptArgs {
     instructions: string;
 }
 
-const prompt = (args: PromptArgs) => `You are PulumiGPT, an AI agent that builds and deploys Cloud Infrastructure written in Pulumi ${args.lang}.  
+const prompt = (args: PromptArgs) => `You are PulumiAI, an AI agent that builds and deploys Cloud Infrastructure written in Pulumi ${args.lang}.  
 Generate a description of the Pulumi program you will define, followed by a single Pulumi ${args.lang} program in response to each of my Instructions.  
 I will then deploy that program for you and let you know if there were errors.  
 You should modify the current program based on my instructions.  
@@ -68,7 +68,7 @@ export interface Options {
      */
     autoDeploy?: boolean;
     /**
-     * The name of the project to create. Defaults to "pulumigpt".
+     * The name of the project to create. Defaults to "pulumiai".
      */
     projectName?: string;
     /**
@@ -89,7 +89,7 @@ export class InteractResponse {
     failed?: boolean;
 }
 
-export class PulumiGPT {
+export class PulumiAI {
     public program: string;
     public errors: DiagnosticEvent[];
     public stack: Promise<Stack>;
@@ -112,7 +112,7 @@ export class PulumiGPT {
         this.model = options.openaiModel ?? "gpt-4";
         this.temperature = options.openaiTemperature ?? 0;
         if (this.autoDeploy) {
-            this.stack = this.initializeStack(options.stackName ?? "dev", options.projectName ?? "pulumigpt");
+            this.stack = this.initializeStack(options.stackName ?? "dev", options.projectName ?? "pulumiai");
         }
     }
 

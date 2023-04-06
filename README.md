@@ -1,15 +1,15 @@
-# Pulumi GPT
+# Pulumi AI
 
-Create cloud infrastructure with Pulumi Automation API and OpenAI ChatGPT 😊.
+Create cloud infrastructure with Pulumi Automation API ☁️ and OpenAI GPT 🤖.
 
-![Demo of Pulumi GPT](assets/demo.gif)
+![Demo of Pulumi AI](assets/demo.gif)
 
 ```
-> npx pulumigpt
+> npx pulumiai
 
-Welcome to Pulumi GPT.
+Welcome to Pulumi AI.
 
-Your stack: https://app.pulumi.com/luke-pulumi-corp/inlineNode/dev/resources
+Your stack: https://app.pulumi.com/luke/pulumiai/dev/resources
 
 What cloud infrastructure do you want to build today?
 
