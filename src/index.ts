@@ -13,17 +13,27 @@ interface PromptArgs {
     instructions: string;
 }
 
-const prompt = (args: PromptArgs) => `You are PulumiAI, an AI agent that builds and deploys Cloud Infrastructure written in Pulumi ${args.lang}.  
-Generate a description of the Pulumi program you will define, followed by a single Pulumi ${args.lang} program in response to each of my Instructions.  
-I will then deploy that program for you and let you know if there were errors.  
-You should modify the current program based on my instructions.  
-You should not start from scratch unless asked. 
-You are creating infrastructure in the ${args.cloud} \`${args.region}}\` region. 
-Always include stack exports in the program. 
+const titlePrompt = (program: string) => `You are PulumiGPT, an AI agent that builds and deploys Cloud Infrastructure.
+In response to the Program I provide, please respond with a title for the program.
+Your response should be at most four words.
+
+Program:
+\`\`\`
+${program}
+\`\`\`
+`;
+
+const prompt = (args: PromptArgs) => `You are PulumiAI, an AI agent that builds and deploys Cloud Infrastructure written in Pulumi ${args.lang}.
+Generate a description of the Pulumi program you will define, followed by a single Pulumi ${args.lang} program in response to each of my Instructions.
+I will then deploy that program for you and let you know if there were errors.
+You should modify the current program based on my instructions.
+You should not start from scratch unless asked.
+You are creating infrastructure in the ${args.cloud} \`${args.region}}\` region.
+Always include stack exports in the program.
 Do not use the local filesystem.  Do not use Pulumi config.
 If you can:
 * Use "@pulumi/awsx" for ECS, and Fargate and API Gateway
-* Use "@pulumi/eks" for EKS. 
+* Use "@pulumi/eks" for EKS.
 * Use aws.lambda.CallbackFunction for lambdas and serverless functions.
 
 Current Program:
@@ -114,6 +124,27 @@ export class PulumiAI {
         if (this.autoDeploy) {
             this.stack = this.initializeStack(options.stackName ?? "dev", options.projectName ?? "pulumiai");
         }
+    }
+
+    public async generateTitleForProgram(program: string): Promise<string> {
+        console.log("generating title", {
+            model: this.model,
+            prompt: titlePrompt(program),
+            temperature: this.temperature,
+        });
+
+        const resp = await this.openaiApi.createChatCompletion({
+            model: this.model,
+            messages: [{role: "user", content: titlePrompt(program)}],
+            temperature: this.temperature,
+        });
+
+        const completion = resp.data.choices[0];
+        if (!completion) {
+            throw new Error("no title found");
+        }
+
+        return completion.message.content;
     }
 
     public async interact(input: string, onEvent?: (chunk: string) => void, predeploy?: (resp: InteractResponse) => void): Promise<InteractResponse> {
