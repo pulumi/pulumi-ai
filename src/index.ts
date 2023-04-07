@@ -13,9 +13,9 @@ interface PromptArgs {
     instructions: string;
 }
 
-const titlePrompt = (program: string) => `You are PulumiGPT, an AI agent that builds and deploys Cloud Infrastructure.
+const titlePrompt = (program: string, wordLimit: number) => `You are PulumiAI, an AI agent that builds and deploys Cloud Infrastructure.
 In response to the Program I provide, please respond with a title for the program.
-Your response should be at most four words.
+Your response should be at most ${wordLimit} words.
 
 Program:
 \`\`\`
@@ -126,10 +126,10 @@ export class PulumiAI {
         }
     }
 
-    public async generateTitleForProgram(program: string): Promise<string> {
+    public async generateTitleForProgram(program: string, wordLimit = 4): Promise<string> {
         const resp = await this.openaiApi.createChatCompletion({
             model: this.model,
-            messages: [{role: "user", content: titlePrompt(program)}],
+            messages: [{role: "user", content: titlePrompt(program, wordLimit)}],
             temperature: this.temperature,
         });
 
