@@ -3,7 +3,30 @@ import { expect } from "chai";
 import axios from "axios";
 import { OutputMap } from "@pulumi/pulumi/automation";
 
+const mockProgram = `import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+
+// Create an AWS S3 bucket for website hosting
+const myBucket = new aws.s3.Bucket("myBucket", {
+  website: {
+    indexDocument: "index.html",
+    errorDocument: "error.html",
+  },
+});
+
+// Export the bucket name
+export const bucketName = myBucket.id;`;
+
 describe("pulumiai", (): void => {
+    it("generates a title for a program", async () => {
+        const p = new PulumiAI({
+            openaiApiKey: process.env.OPENAI_API_KEY!,
+        });
+
+        const title = await p.generateTitleForProgram(mockProgram);
+        expect(title).to.equal("S3 Website Hosting Setup");
+    });
+
     it("construct PulumiAI stack", async () => {
         const p = new PulumiAI({
             openaiApiKey: process.env.OPENAI_API_KEY!,
