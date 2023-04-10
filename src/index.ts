@@ -23,11 +23,25 @@ ${program}
 \`\`\`
 `;
 
-const prompt = (args: PromptArgs) => `You are PulumiAI, an AI agent that builds and deploys Cloud Infrastructure written in Pulumi ${args.lang}.
-Generate a description of the Pulumi program you will define, followed by a single Pulumi ${args.lang} program in response to each of my Instructions.
+const basePrompt = (lang: string) => `You are PulumiAI, an AI agent that builds and deploys Cloud Infrastructure written in Pulumi ${lang}.
+Generate a description of the Pulumi program you will define, followed by a single Pulumi ${lang} program in response to each of my Instructions.
 I will then deploy that program for you and let you know if there were errors.
 You should modify the current program based on my instructions.
-You should not start from scratch unless asked.
+You should not start from scratch unless asked.`;
+
+const textPrompt = (args: Pick<PromptArgs, "lang" | "langcode" | "program" | "instructions">) => `${basePrompt(args.lang)}
+Please output in markdown syntax.
+
+Current Program:
+\`\`\`${args.langcode}
+${args.program}
+\`\`\`
+
+Instructions:
+${args.instructions}
+`;
+
+const prompt = (args: PromptArgs) => `${basePrompt(args.lang)}
 You are creating infrastructure in the ${args.cloud} \`${args.region}}\` region.
 Always include stack exports in the program.
 Do not use the local filesystem.  Do not use Pulumi config.
@@ -141,6 +155,24 @@ export class PulumiAI {
         return completion.message.content;
     }
 
+    public async generateProgramFromPrompt(language: string, instructions: string, program: string, onEvent?: (chunk: string) => void) {
+        const markdownLangMap: Record<string, string> = {
+            "TypeScript": "typescript",
+            "Go": "go",
+            "Python": "python",
+            "C#": "csharp",
+        };
+
+        const content = textPrompt({
+            lang: language,
+            langcode: markdownLangMap[language] ?? "typescript",
+            program,
+            instructions,
+        })
+
+        return this.generateProgramFor(content, onEvent);
+    }
+
     public async interact(input: string, onEvent?: (chunk: string) => void, predeploy?: (resp: InteractResponse) => void): Promise<InteractResponse> {
         const resp = await this.getProgramFor(input, onEvent);
         this.program = resp.program;
@@ -188,6 +220,11 @@ export class PulumiAI {
             outputs: {},
             instructions: request,
         })
+
+        return this.generateProgramFor(content, onEvent);
+    }
+
+    private async generateProgramFor(content: string, onEvent?: (chunk: string) => void): Promise<ProgramResponse> {
         this.log("prompt: " + content);
         const resp = await this.openaiApi.createChatCompletion({
             model: this.model,
