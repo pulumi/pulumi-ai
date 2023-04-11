@@ -71,9 +71,6 @@ function requireFromString(src: string): Record<string, any> {
     return exports;
 }
 
-
-
-
 export interface Options {
     /**
      * The OpenAI API key to use.
@@ -111,6 +108,115 @@ export class InteractResponse {
     outputs?: OutputMap;
     program?: string;
     failed?: boolean;
+}
+
+export class PulumiAIText {
+    public program: string;
+    public errors: DiagnosticEvent[];
+    public stack: Promise<Stack>;
+    public verbose: boolean;
+    public autoDeploy: boolean;
+
+    private openaiApi: openai.OpenAIApi;
+    private model: string;
+    private temperature: number;
+
+    constructor(options: Options) {
+        const configuration = new openai.Configuration({
+            apiKey: options.openaiApiKey,
+        });
+        this.openaiApi = new openai.OpenAIApi(configuration);
+        this.program = "";
+        this.errors = [];
+        this.verbose = false;
+        this.model = options.openaiModel ?? "gpt-4";
+        this.temperature = options.openaiTemperature ?? 0;
+    }
+
+    public async generateTitleForProgram(program: string, wordLimit = 4): Promise<string> {
+        const resp = await this.openaiApi.createChatCompletion({
+            model: this.model,
+            messages: [{role: "user", content: titlePrompt(program, wordLimit)}],
+            temperature: this.temperature,
+        });
+
+        const completion = resp.data.choices[0];
+        if (!completion) {
+            throw new Error("no title found");
+        }
+
+        return completion.message.content;
+    }
+
+    public async generateProgramFromPrompt(language: string, instructions: string, program: string, onEvent?: (chunk: string) => void) {
+        const markdownLangMap: Record<string, string> = {
+            "TypeScript": "typescript",
+            "Go": "go",
+            "Python": "python",
+            "C#": "csharp",
+        };
+
+        const content = textPrompt({
+            lang: language,
+            langcode: markdownLangMap[language] ?? "typescript",
+            program,
+            instructions,
+        })
+
+        return await this.generateProgramFor(content, onEvent);
+    }
+
+    private async generateProgramFor(content: string, onEvent?: (chunk: string) => void): Promise<string> {
+        this.log("prompt: " + content);
+        const resp = await this.openaiApi.createChatCompletion({
+            model: this.model,
+            messages: [{ role: "user", content }],
+            temperature: this.temperature,
+            stream: true,
+        }, { responseType: "stream" });
+
+        const stream = resp.data as unknown as IncomingMessage;
+
+        const allData = new Promise<string>((resolve, reject) => {
+            const textParts: string[] = [];
+            stream.on("data", async (chunk: Buffer) => {
+                try {
+                    const payloads = chunk.toString().split("\n\n");
+                    for (const payload of payloads) {
+                        if (payload.includes('[DONE]')) {
+                            resolve(textParts.join(""));
+                        } else if (payload.startsWith("data:")) {
+                            const data = payload.replace(/(\n)?^data:\s*/g, '');
+                            const parsed = JSON.parse(data.trim());
+                            const content = parsed.choices[0].delta.content;
+                            if (content) {
+                                if (onEvent) {
+                                    onEvent(content);
+                                }
+                                textParts.push(content);
+                            }
+                        } else if (payload == "") {
+                            // Ignore empty payloads
+                        } else {
+                            this.log("unknown openai payload: " + payload)
+                        }
+                    }
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        });
+
+        // Wait until we've gotten all the updates from the stream.
+        // This might throw, and if it does, we bubble that up into our caller.
+        return await allData;
+    }
+
+    private log(msg: string) {
+        if (this.verbose) {
+            console.warn(msg);
+        }
+    }
 }
 
 export class PulumiAI {
