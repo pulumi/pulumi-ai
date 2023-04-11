@@ -92,7 +92,7 @@ export interface Options {
      */
     autoDeploy?: boolean;
     /**
-     * The name of the project to create. Defaults to "pulumiai".
+     * The name of the project to create. Defaults to "pulumi-ai".
      */
     projectName?: string;
     /**
@@ -136,7 +136,7 @@ export class PulumiAI {
         this.model = options.openaiModel ?? "gpt-4";
         this.temperature = options.openaiTemperature ?? 0;
         if (this.autoDeploy) {
-            this.stack = this.initializeStack(options.stackName ?? "dev", options.projectName ?? "pulumiai");
+            this.stack = this.initializeStack(options.stackName ?? "dev", options.projectName ?? "pulumi-ai");
         }
     }
 

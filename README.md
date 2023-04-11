@@ -5,11 +5,11 @@ Create cloud infrastructure with Pulumi Automation API ☁️ and OpenAI GPT �
 ![Demo of Pulumi AI](assets/demo.gif)
 
 ```
-> npx pulumiai
+> npx pulumi-ai
 
 Welcome to Pulumi AI.
 
-Your stack: https://app.pulumi.com/luke/pulumiai/dev/resources
+Your stack: https://app.pulumi.com/luke/pulumi-ai/dev/resources
 
 What cloud infrastructure do you want to build today?
 

@@ -1,8 +1,8 @@
 {
-  "name": "pulumiai",
+  "name": "pulumi-ai",
   "version": "0.0.1",
   "main": "./lib/index.js",
-  "repository": "https://github.com/pulumi/pulumiai",
+  "repository": "https://github.com/pulumi/pulumi-ai",
   "author": "Luke Hoban",
   "license": "Apache-2.0",
   "dependencies": {
@@ -32,7 +32,7 @@
     "test": "ts-mocha tests/**/*.test.ts"
   },
   "bin": {
-    "pulumiai": "./lib/cli.js"
+    "pulumi-ai": "./lib/cli.js"
   },
   "files": [
     "lib"
