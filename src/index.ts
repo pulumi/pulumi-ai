@@ -170,7 +170,7 @@ export class PulumiAI {
             instructions,
         })
 
-        return this.generateProgramFor(content, onEvent);
+        return await this.generateProgramFor(content, onEvent);
     }
 
     public async interact(input: string, onEvent?: (chunk: string) => void, predeploy?: (resp: InteractResponse) => void): Promise<InteractResponse> {
