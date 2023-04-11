@@ -42,7 +42,6 @@ ${args.instructions}
 `;
 
 const prompt = (args: PromptArgs) => `${basePrompt(args.lang)}
-You are creating infrastructure in the ${args.cloud} \`${args.region}}\` region.
 Always include stack exports in the program.
 Do not use the local filesystem.  Do not use Pulumi config.
 If you can:
