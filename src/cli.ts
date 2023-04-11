@@ -49,10 +49,17 @@ async function handleCommand(request: string, ai: PulumiAI) {
 }
 
 async function run() {
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+        console.error("OPENAI_API_KEY must be set");
+        process.exit(-1);
+    }
+    const openaiModel = process.env.OPENAI_MODEL ?? "gpt-4";
+    const openaiTemperature = +process.env.OPENAI_TEMPERATURE ?? 0.01;
     const ai = new PulumiAI({
-        openaiApiKey: process.env.OPENAI_API_KEY,
-        openaiModel: process.env.OPENAI_MODEL ?? "gpt-4",
-        openaiTemperature: +process.env.OPENAI_TEMPERATURE ?? 0,
+        openaiApiKey,
+        openaiModel,
+        openaiTemperature,
         autoDeploy: true,
     });
 
@@ -89,7 +96,8 @@ async function run() {
         });
         process.stdout.write("\r");
         if (resp.failed == true) {
-            ai.errors.forEach(e => console.warn(`error: ${JSON.stringify(e)}`));
+            ai.errors.forEach(e => console.warn(`error: ${e.message}`));
+            console.warn(`The infrastructure update failed, try asking me to "fix the error".`);
         } else if (resp.program) {
             const outputs = resp.outputs || {};
             if (Object.keys(outputs).length > 0) {
@@ -99,7 +107,7 @@ async function run() {
                 console.log(`  ${k}: ${v.value}`);
             }
         } else {
-            // We could find a program.
+            // We couldn't find a program.
             console.warn(`error: ${resp.text}`);
         }
     }
