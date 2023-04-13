@@ -1,6 +1,6 @@
 {
   "name": "pulumi-ai",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "./lib/index.js",
   "repository": "https://github.com/pulumi/pulumi-ai",
   "author": "Luke Hoban",
