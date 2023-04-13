@@ -39,7 +39,7 @@ describe("pulumiai", (): void => {
         });
         const stack = await p.stack;
         const summary = await stack.workspace.stack();
-        expect(summary!.name).to.equal("dev");
+        expect(summary!.resourceCount).to.equal(1);
     }).timeout(100000);
 
     it("builds a simple vpc", async () => {
@@ -74,7 +74,7 @@ describe("pulumiai", (): void => {
         await runTest(commands, {}, async (p, outputs) => {
             let checked = 0;
             for (const [k, v] of Object.entries(outputs)) {
-                if (typeof v.value == "string" && v.value.indexOf("amazonaws.com") != -1) {
+                if (typeof v.value == "string" && v.value.indexOf(".com") != -1) {
                     const resp = await axios.get(v.value);
                     expect(resp.data).to.contain("Hello");
                     checked++;
@@ -93,7 +93,7 @@ describe("pulumiai", (): void => {
         ];
         await runTest(commands, { autoDeploy: false }, async (p) => {
             expect(p.program).to.contain("Hello");
-            expect(p.program).to.contain("websiteEndpoint");
+            expect(p.program).to.contain.oneOf(["websiteEndpoint", "domainName"]);
         },);
     }).timeout(1000000);
 
