@@ -17,10 +17,15 @@ const myBucket = new aws.s3.Bucket("myBucket", {
 // Export the bucket name
 export const bucketName = myBucket.id;`;
 
+function randomHex(): string {
+    return Math.floor(Math.random() * 0xffffffff).toString(16);
+}
+
 describe("pulumiai", (): void => {
     it("generates a title for a program", async () => {
         const p = new PulumiAI({
             openaiApiKey: process.env.OPENAI_API_KEY!,
+            stackName: `test-stack-${randomHex()}`
         });
 
         const title = await p.generateTitleForProgram(mockProgram);
@@ -30,6 +35,7 @@ describe("pulumiai", (): void => {
     it("construct PulumiAI stack", async () => {
         const p = new PulumiAI({
             openaiApiKey: process.env.OPENAI_API_KEY!,
+            stackName: `test-stack-${randomHex()}`
         });
         const stack = await p.stack;
         const summary = await stack.workspace.stack();
@@ -100,7 +106,8 @@ interface Options {
 async function runTest(commands: string[], opts: Options, validate: (p: PulumiAI, outputs: OutputMap) => Promise<void>) {
     const p = new PulumiAI({
         openaiApiKey: process.env.OPENAI_API_KEY!,
-        openaiTemperature: 0, // For test stability
+        openaiTemperature: 0.01, // For test stability
+        stackName: `test-stack-${randomHex()}`,
         ...opts,
     });
     let i = 0;
