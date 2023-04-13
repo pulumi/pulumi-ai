@@ -30,7 +30,7 @@ describe("pulumiai", (): void => {
 
         const title = await p.generateTitleForProgram(mockProgram);
         expect(title).to.equal("S3 Website Hosting Setup");
-    });
+    }).timeout(100000);
 
     it("construct PulumiAI stack", async () => {
         const p = new PulumiAI({
@@ -74,7 +74,7 @@ describe("pulumiai", (): void => {
         await runTest(commands, {}, async (p, outputs) => {
             let checked = 0;
             for (const [k, v] of Object.entries(outputs)) {
-                if (typeof v.value == "string" && v.value.indexOf(".com") != -1) {
+                if (typeof v.value == "string" && v.value.indexOf("http") != -1) {
                     const resp = await axios.get(v.value);
                     expect(resp.data).to.contain("Hello");
                     checked++;
@@ -106,21 +106,23 @@ interface Options {
 async function runTest(commands: string[], opts: Options, validate: (p: PulumiAI, outputs: OutputMap) => Promise<void>) {
     const p = new PulumiAI({
         openaiApiKey: process.env.OPENAI_API_KEY!,
-        openaiTemperature: 0.01, // For test stability
+        openaiTemperature: 0.0, // For test stability
         stackName: `test-stack-${randomHex()}`,
         ...opts,
     });
     let i = 0;
+    const stack = await p.stack;
     for (const command of commands) {
         console.log(`step ${++i}/${commands.length}: '${command}'`);
         await p.interact(command);
         while (p.errors.length != 0) {
             await p.interact("Fix the errors");
         }
+        const outputs = await stack.outputs();
+        console.log(`outputs:\n${JSON.stringify(outputs, null, 2)}`);
     }
     console.log(`Program:\n${p.program}`);
     if (p.autoDeploy) {
-        const stack = await p.stack;
         const outputs = await stack.outputs();
         console.log(`Validating outputs:\n${JSON.stringify(outputs, null, 2)}`);
         await validate(p, outputs);
