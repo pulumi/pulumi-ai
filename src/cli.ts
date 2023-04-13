@@ -51,8 +51,8 @@ async function handleCommand(request: string, ai: PulumiAI) {
 async function run() {
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
-        console.error("OPENAI_API_KEY must be set");
-        process.exit(-1);
+        console.error("Error: OPENAI_API_KEY must be set");
+        process.exit(2);
     }
     const openaiModel = process.env.OPENAI_MODEL ?? "gpt-4";
     const openaiTemperature = +process.env.OPENAI_TEMPERATURE ?? 0.01;
@@ -114,6 +114,6 @@ async function run() {
 }
 
 run().catch(err => {
-    console.error(`unhandled error: ${err}`);
+    console.error(`Error: ${err}`);
     process.exit(1);
 });
