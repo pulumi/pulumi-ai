@@ -27,7 +27,6 @@
   "scripts": {
     "prepublish": "tsc",
     "build": "tsc",
-    "postinstall": "tsc",
     "start": "tsc && node ./lib/index.js",
     "test": "ts-mocha tests/**/*.test.ts"
   },
