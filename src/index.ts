@@ -66,12 +66,13 @@ ${args.instructions}
 
 function requireFromString(src: string): Record<string, any> {
     var exports = {};
-    eval(src);
+    try {
+        eval(src);
+    } catch (err) {
+        console.error(err);
+    }
     return exports;
 }
-
-
-
 
 export interface Options {
     /**
@@ -142,7 +143,7 @@ export class PulumiAI {
     public async generateTitleForProgram(program: string, wordLimit = 4): Promise<string> {
         const resp = await this.openaiApi.createChatCompletion({
             model: this.model,
-            messages: [{role: "user", content: titlePrompt(program, wordLimit)}],
+            messages: [{ role: "user", content: titlePrompt(program, wordLimit) }],
             temperature: this.temperature,
         });
 
@@ -203,7 +204,14 @@ export class PulumiAI {
         await stack.setConfig("aws:region", { value: "us-west-2" });
         // Cancel and ignore any errors to ensure we clean up after previous failed deployments
         try { await stack.cancel(); } catch (err) { }
-        const res = await stack.up();
+        try {
+            const res = await stack.up();
+        } catch (err) {
+            if (err.commandResult) {
+                throw new Error(err.commandResult.stderr);
+            }
+            throw err;
+        }
         return stack;
     }
 

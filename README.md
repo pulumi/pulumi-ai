@@ -9,6 +9,7 @@ Create cloud infrastructure with Pulumi Automation API ☁️ and OpenAI GPT �
 ## Running
 
 To use the CLI tool, you must configure the following:
+* Download and install [`pulumi`](https://www.pulumi.com/docs/get-started/install/)
 * Get an OpenAI API Key and make it available as `OPENAI_API_KEY`.
 * Login to Pulumi via `pulumi login`, or else by exporting a Pulumi Access Token as `PULUMI_ACCESS_TOKEN`.
 * Configure your cloud credentials for your target Cloud environment ([AWS](https://www.pulumi.com/registry/packages/aws/installation-configuration/), [Azure](https://www.pulumi.com/registry/packages/azure-native/installation-configuration/), [Google Cloud](https://www.pulumi.com/registry/packages/gcp/installation-configuration/), [Kubernetes](https://www.pulumi.com/registry/packages/kubernetes/installation-configuration/), etc.)
