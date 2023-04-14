@@ -88,7 +88,7 @@ describe("pulumiai", (): void => {
         const commands = [
             `give me an s3 bucket`,
             `add an index.html file that says "Hello, world!" in three languages`,
-            `give me the url for the index.html file`,
+            `give me the website url for the index.html file`,
             `That gave me "AccessDenied", can you fix it?`,
         ];
         await runTest(commands, { autoDeploy: false }, async (p) => {
@@ -106,7 +106,7 @@ interface Options {
 async function runTest(commands: string[], opts: Options, validate: (p: PulumiAI, outputs: OutputMap) => Promise<void>) {
     const p = new PulumiAI({
         openaiApiKey: process.env.OPENAI_API_KEY!,
-        openaiTemperature: 0.0, // For test stability
+        openaiTemperature: 0.01, // For test stability
         stackName: `test-stack-${randomHex()}`,
         ...opts,
     });
@@ -118,8 +118,10 @@ async function runTest(commands: string[], opts: Options, validate: (p: PulumiAI
         while (p.errors.length != 0) {
             await p.interact("Fix the errors");
         }
-        const outputs = await stack.outputs();
-        console.log(`outputs:\n${JSON.stringify(outputs, null, 2)}`);
+        if (p.autoDeploy) {
+            const outputs = await stack.outputs();
+            console.log(`outputs:\n${JSON.stringify(outputs, null, 2)}`);
+        }
     }
     console.log(`Program:\n${p.program}`);
     if (p.autoDeploy) {
