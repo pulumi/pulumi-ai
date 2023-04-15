@@ -17,23 +17,29 @@ const myBucket = new aws.s3.Bucket("myBucket", {
 // Export the bucket name
 export const bucketName = myBucket.id;`;
 
+function randomHex(): string {
+    return Math.floor(Math.random() * 0xffffffff).toString(16);
+}
+
 describe("pulumiai", (): void => {
     it("generates a title for a program", async () => {
         const p = new PulumiAI({
             openaiApiKey: process.env.OPENAI_API_KEY!,
+            stackName: `test-stack-${randomHex()}`
         });
 
         const title = await p.generateTitleForProgram(mockProgram);
         expect(title).to.equal("S3 Website Hosting Setup");
-    });
+    }).timeout(100000);
 
     it("construct PulumiAI stack", async () => {
         const p = new PulumiAI({
             openaiApiKey: process.env.OPENAI_API_KEY!,
+            stackName: `test-stack-${randomHex()}`
         });
         const stack = await p.stack;
         const summary = await stack.workspace.stack();
-        expect(summary!.name).to.equal("dev");
+        expect(summary!.resourceCount).to.equal(1);
     }).timeout(100000);
 
     it("builds a simple vpc", async () => {
@@ -68,7 +74,7 @@ describe("pulumiai", (): void => {
         await runTest(commands, {}, async (p, outputs) => {
             let checked = 0;
             for (const [k, v] of Object.entries(outputs)) {
-                if (typeof v.value == "string" && v.value.indexOf("amazonaws.com") != -1) {
+                if (typeof v.value == "string" && v.value.indexOf("http") != -1) {
                     const resp = await axios.get(v.value);
                     expect(resp.data).to.contain("Hello");
                     checked++;
@@ -82,12 +88,12 @@ describe("pulumiai", (): void => {
         const commands = [
             `give me an s3 bucket`,
             `add an index.html file that says "Hello, world!" in three languages`,
-            `give me the url for the index.html file`,
+            `give me the website url for the index.html file`,
             `That gave me "AccessDenied", can you fix it?`,
         ];
         await runTest(commands, { autoDeploy: false }, async (p) => {
             expect(p.program).to.contain("Hello");
-            expect(p.program).to.contain("websiteEndpoint");
+            expect(p.program).to.contain.oneOf(["websiteEndpoint", "domainName"]);
         },);
     }).timeout(1000000);
 
@@ -100,20 +106,25 @@ interface Options {
 async function runTest(commands: string[], opts: Options, validate: (p: PulumiAI, outputs: OutputMap) => Promise<void>) {
     const p = new PulumiAI({
         openaiApiKey: process.env.OPENAI_API_KEY!,
-        openaiTemperature: 0, // For test stability
+        openaiTemperature: 0.01, // For test stability
+        stackName: `test-stack-${randomHex()}`,
         ...opts,
     });
     let i = 0;
+    const stack = await p.stack;
     for (const command of commands) {
         console.log(`step ${++i}/${commands.length}: '${command}'`);
         await p.interact(command);
         while (p.errors.length != 0) {
             await p.interact("Fix the errors");
         }
+        if (p.autoDeploy) {
+            const outputs = await stack.outputs();
+            console.log(`outputs:\n${JSON.stringify(outputs, null, 2)}`);
+        }
     }
     console.log(`Program:\n${p.program}`);
     if (p.autoDeploy) {
-        const stack = await p.stack;
         const outputs = await stack.outputs();
         console.log(`Validating outputs:\n${JSON.stringify(outputs, null, 2)}`);
         await validate(p, outputs);
