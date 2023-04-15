@@ -74,7 +74,7 @@ describe("pulumiai", (): void => {
         await runTest(commands, {}, async (p, outputs) => {
             let checked = 0;
             for (const [k, v] of Object.entries(outputs)) {
-                if (typeof v.value == "string" && v.value.indexOf("http") != -1) {
+                if (typeof v.value == "string" && v.value.indexOf(".com") != -1) {
                     const resp = await axios.get(v.value);
                     expect(resp.data).to.contain("Hello");
                     checked++;
