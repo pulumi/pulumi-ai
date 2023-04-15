@@ -1,5 +1,6 @@
 import { LocalWorkspace, Stack, EngineEvent, OutputMap, DiagnosticEvent } from "@pulumi/pulumi/automation";
 import { IncomingMessage } from "http";
+import { AxiosResponse } from "axios";
 import * as openai from "openai";
 
 interface PromptArgs {
@@ -233,12 +234,20 @@ export class PulumiAI {
 
     private async generateProgramFor(content: string, onEvent?: (chunk: string) => void): Promise<ProgramResponse> {
         this.log("prompt: " + content);
-        const resp = await this.openaiApi.createChatCompletion({
-            model: this.model,
-            messages: [{ role: "user", content }],
-            temperature: this.temperature,
-            stream: true,
-        }, { responseType: "stream" });
+        let resp: AxiosResponse<openai.CreateChatCompletionResponse, any>;
+        try {
+            resp = await this.openaiApi.createChatCompletion({
+                model: this.model,
+                messages: [{ role: "user", content }],
+                temperature: this.temperature,
+                stream: true,
+            }, { responseType: "stream" });
+        } catch (err) {
+            if (err.message == "Request failed with status code 404") {
+                throw new Error(`Got a 404 response from OpenAI API.  Confirm that the model you provided (via \`OPENAI_MODEL\` or default \`gpt-4\`) is one that your OpenAI account has access to: '${this.model}'`)
+            }
+            throw err;
+        }
 
         const stream = resp.data as unknown as IncomingMessage;
 

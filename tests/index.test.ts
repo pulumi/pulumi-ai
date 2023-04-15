@@ -68,7 +68,7 @@ describe("pulumiai", (): void => {
         const commands = [
             `give me an s3 bucket`,
             `add an index.html file that says "Hello, world!" in three languages`,
-            `give me the url for the index.html file`,
+            `give me the website url for the index.html file`,
             `That gave me "AccessDenied", can you fix it?`,
         ];
         await runTest(commands, {}, async (p, outputs) => {
