@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { PulumiAI } from ".";
+import { PulumiAI, InteractResponse } from ".";
 import * as readline from "readline";
 import * as chalk from "chalk";
 
@@ -75,40 +75,48 @@ async function run() {
     console.log(chalk.italic("What cloud infrastructure do you want to build today?"));
 
     while (true) {
-        const request = await new Promise<string>(resolve => {
-            rl.question(`\n> ${chalk.reset()}`, resolve);
-        });
-        if (request.length > 0 && request[0] == "!") {
-            await handleCommand(request, ai);
+        try {
+            const request = await new Promise<string>(resolve => {
+                rl.question(`\n> ${chalk.reset()}`, resolve);
+            });
+            if (request.length > 0 && request[0] == "!") {
+                await handleCommand(request, ai);
+                continue;
+            }
+
+            let text = "";
+            let i = 0;
+
+
+            const resp = await ai.interact(request, (chunk) => {
+                chunk = chunk.replace(/[\n\t\r]/g, " ");
+                text = (text + chunk).slice(-60);
+                const progress = [".  ", ".. ", "...", "   "][Math.floor((i++) / 3) % 4];
+                process.stdout.write(`\rThinking${progress}  ${chalk.dim(text)}`);
+            }, () => {
+                readline.clearLine(process.stdout, -1)
+                process.stdout.write(`\r`);
+            });
+
+            process.stdout.write("\r");
+            if (resp.failed == true) {
+                ai.errors.forEach(e => console.warn(`error: ${e.message}`));
+                console.warn(`The infrastructure update failed, try asking me to "fix the error".`);
+            } else if (resp.program) {
+                const outputs = resp.outputs || {};
+                if (Object.keys(outputs).length > 0) {
+                    console.log("Stack Outputs:");
+                }
+                for (const [k, v] of Object.entries(outputs)) {
+                    console.log(`  ${k}: ${v.value}`);
+                }
+            } else {
+                // We couldn't find a program.
+                console.warn(`error: ${resp.text}`);
+            }
+        } catch (err) {
+            console.error(`error: ${err}`);
             continue;
-        }
-        
-        let text = "";
-        let i = 0;
-        const resp = await ai.interact(request, (chunk) => {
-            chunk = chunk.replace(/[\n\t\r]/g, " ");
-            text = (text + chunk).slice(-60);
-            const progress = [".  ", ".. ", "...", "   "][Math.floor((i++)/3) % 4];
-            process.stdout.write(`\rThinking${progress}  ${chalk.dim(text)}`);
-        }, () => {
-            readline.clearLine(process.stdout, -1)
-            process.stdout.write(`\r`);
-        });
-        process.stdout.write("\r");
-        if (resp.failed == true) {
-            ai.errors.forEach(e => console.warn(`error: ${e.message}`));
-            console.warn(`The infrastructure update failed, try asking me to "fix the error".`);
-        } else if (resp.program) {
-            const outputs = resp.outputs || {};
-            if (Object.keys(outputs).length > 0) {
-                console.log("Stack Outputs:");
-            }
-            for (const [k, v] of Object.entries(outputs)) {
-                console.log(`  ${k}: ${v.value}`);
-            }
-        } else {
-            // We couldn't find a program.
-            console.warn(`error: ${resp.text}`);
         }
     }
 }
