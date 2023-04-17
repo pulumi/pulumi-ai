@@ -9,10 +9,10 @@ Create cloud infrastructure with Pulumi Automation API ☁️ and OpenAI GPT �
 ## Running
 
 To use the CLI tool, you must configure the following:
-* Download and install [`pulumi`](https://www.pulumi.com/docs/get-started/install/)
-* Get an OpenAI API Key and make it available as `OPENAI_API_KEY`.
+* Download and install [`pulumi`](https://www.pulumi.com/docs/get-started/install/).
+* Get an [OpenAI API Key](https://platform.openai.com/account/api-keys) and make it available as `OPENAI_API_KEY`.
 * Login to Pulumi via `pulumi login`, or else by exporting a Pulumi Access Token as `PULUMI_ACCESS_TOKEN`.
-* Configure your cloud credentials for your target Cloud environment ([AWS](https://www.pulumi.com/registry/packages/aws/installation-configuration/), [Azure](https://www.pulumi.com/registry/packages/azure-native/installation-configuration/), [Google Cloud](https://www.pulumi.com/registry/packages/gcp/installation-configuration/), [Kubernetes](https://www.pulumi.com/registry/packages/kubernetes/installation-configuration/), etc.)
+* Configure your cloud credentials for your target Cloud environment ([AWS](https://www.pulumi.com/registry/packages/aws/installation-configuration/), [Azure](https://www.pulumi.com/registry/packages/azure-native/installation-configuration/), [Google Cloud](https://www.pulumi.com/registry/packages/gcp/installation-configuration/), [Kubernetes](https://www.pulumi.com/registry/packages/kubernetes/installation-configuration/), etc.).
 
 > _Note_: The `pulumi-ai` CLI works best with AWS today, but can be used with any cloud.
 
@@ -30,7 +30,7 @@ You can ask for any infrastructure you want, then use these commands to take act
 * `!open <output>`: Open a URL from the given stack output name in the system browser.
 
 The following environment variables are also available to configure the GPT AI used:
-* `OPENAI_MODEL`: Select one of the valid [OpenAI Models](), suchas as `gpt-4` (default, and most accurate but slow) or `gpt-3.5-turbo` (not as accurate but much faster).
+* `OPENAI_MODEL`: Select one of the valid [OpenAI Models](https://platform.openai.com/docs/models), suchas as `gpt-4` (default, and most accurate but slow) or `gpt-3.5-turbo` (not as accurate but much faster).
 * `OPENAI_TEMPERATURE`: Configure the temperature to tune the AI to be more predicatable (lower values) or more creative (higher values).
 
 ## Examples
