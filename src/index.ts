@@ -72,7 +72,7 @@ function requireFromString(src: string): Record<string, any> {
     } catch (err) {
         console.error(`The generated program failed with an error:
 * Run "!program" to inspect the generated code, or
-* Include the error message in your promp and ask "Can you fix this?"
+* Include the error message in your prompt and ask "Can you fix this?"
 
 ${err.stack || err}`);
     }
