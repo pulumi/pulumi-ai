@@ -45,6 +45,7 @@ ${args.instructions}
 const prompt = (args: PromptArgs) => `${basePrompt(args.lang)}
 Always include stack exports in the program.
 Do not use the local filesystem.  Do not use Pulumi config.
+Do not generate code in languages other than ${args.lang}.
 If you can:
 * Use "@pulumi/awsx" for ECS, and Fargate and API Gateway
 * Use "@pulumi/eks" for EKS.
