@@ -2,7 +2,7 @@
 
 Create cloud infrastructure with Pulumi Automation API ☁️ and OpenAI GPT 🤖.  Try out Pulumi AI online at https://pulumi.com/ai, or locally with `npx pulumi-ai`.
 
-> _Note_: This is an experimental AI experience for interactively building cloud infrastructure using GPT.  It will likely do surprising and interesting things, and will make mistakes!  You have the option to provide access to deploy infrastructure directly into your cloud account(s), which puts incredible power in the hands of the AI, be sure to use with approporiate caution.
+> _Note_: This is an experimental AI experience for interactively building cloud infrastructure using GPT.  It will likely do surprising and interesting things, and will make mistakes!  You have the option to provide access to deploy infrastructure directly into your cloud account(s), which puts incredible power in the hands of the AI, be sure to use with appropriate caution.
 
 ![Demo of Pulumi AI](assets/demo.gif)
 
@@ -31,7 +31,7 @@ You can ask for any infrastructure you want, then use these commands to take act
 
 The following environment variables are also available to configure the GPT AI used:
 * `OPENAI_MODEL`: Select one of the valid [OpenAI Models](https://platform.openai.com/docs/models), suchas as `gpt-4` (default, and most accurate but slow) or `gpt-3.5-turbo` (not as accurate but much faster).
-* `OPENAI_TEMPERATURE`: Configure the temperature to tune the AI to be more predicatable (lower values) or more creative (higher values).
+* `OPENAI_TEMPERATURE`: Configure the temperature to tune the AI to be more predictable (lower values) or more creative (higher values).
 
 ## Examples
 
